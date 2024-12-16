@@ -10,35 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Клонування репозиторію
+    # Clone the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Налаштування підключення до EC2
+    # Deploy to EC2 instance
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.5
       with:
-        host: ${{ secrets.EC2_PUBLIC_IP }} # Публічна IP-адреса вашого EC2 інстансу
-        username: ${{ secrets.EC2_USER }} # Ім'я користувача для SSH (наприклад, ec2-user)
-        key: ${{ secrets.EC2_PRIVATE_KEY }} # Приватний SSH-ключ
+        host: ${{ secrets.EC2_PUBLIC_IP }} # Public IP of your EC2 instance
+        username: ${{ secrets.EC2_USER }} # SSH username (e.g., ec2-user)
+        key: ${{ secrets.EC2_PRIVATE_KEY }} # Private SSH key
         script: |
-          # Оновлення системи
+          # Update the system
           sudo yum update -y || sudo apt update -y
 
-          # Встановлення Docker (якщо не встановлено)
+          # Install git if not installed
+          if ! command -v git &> /dev/null; then
+            echo "Installing git..."
+            sudo yum install -y git || sudo apt install -y git
+          fi
+
+          # Install Docker if not installed
           if ! command -v docker &> /dev/null; then
+            echo "Installing Docker..."
             sudo yum install -y docker || sudo apt install -y docker.io
             sudo service docker start || sudo systemctl start docker
             sudo usermod -aG docker $USER
+            newgrp docker # Reload group without logging out
           fi
 
-          # Створення робочої директорії для проєкту
+          # Set up the project directory
           PROJECT_DIR="/home/ec2-user/fastapi-app"
           sudo mkdir -p $PROJECT_DIR
           sudo chown $USER:$USER $PROJECT_DIR
           cd $PROJECT_DIR
 
-          # Завантаження останнього коду з GitHub
+          # Pull the latest code from GitHub
           if [ ! -d ".git" ]; then
             git init
             git remote add origin git@github.com:${{ github.repository }}.git
@@ -46,14 +54,14 @@ jobs:
           git fetch origin
           git reset --hard origin/master
 
-          # Збирання Docker-образу
-          docker build -t fastapi-app:latest .
+          # Build the Docker image
+          sudo docker build -t fastapi-app:latest .
 
-          # Зупинка та видалення попереднього контейнера
-          docker stop fastapi-app || true
-          docker rm fastapi-app || true
+          # Stop and remove any existing container
+          sudo docker stop fastapi-app || true
+          sudo docker rm fastapi-app || true
 
-          # Запуск нового контейнера
-          docker run -d -p 80:8000 --name fastapi-app fastapi-app:latest
+          # Run the new container
+          sudo docker run -d -p 80:8000 --name fastapi-app fastapi-app:latest
 
           echo "Deployment completed!"
