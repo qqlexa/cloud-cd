@@ -37,3 +37,17 @@ async def get_file(file_name: str):
         return JSONResponse(content={"file": content.decode('utf-8')}, status_code=200)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.delete("/delete/{file_name}")
+async def delete_file(file_name: str):
+    try:
+        file_path = os.path.join(UPLOAD_DIR, file_name)
+
+        if not os.path.exists(file_path):
+            return JSONResponse(content={"error": "File not found!"}, status_code=404)
+
+        os.remove(file_path)  # Delete the file
+        return JSONResponse(content={"message": f"File {file_name} deleted successfully!"}, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
