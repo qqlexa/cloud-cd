@@ -3,7 +3,7 @@ name: Deploy FastAPI to AWS EC2
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
@@ -44,7 +44,7 @@ jobs:
             git remote add origin git@github.com:${{ github.repository }}.git
           fi
           git fetch origin
-          git reset --hard origin/main
+          git reset --hard origin/master
 
           # Збирання Docker-образу
           docker build -t fastapi-app:latest .
